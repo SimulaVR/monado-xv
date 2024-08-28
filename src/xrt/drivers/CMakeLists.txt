@@ -209,6 +209,26 @@ if(XRT_BUILD_DRIVER_REALSENSE)
 	list(APPEND ENABLED_HEADSET_DRIVERS rs)
 endif()
 
+if(XRT_BUILD_DRIVER_XVISIO)
+    add_library(
+        drv_xvisio STATIC
+        xvisio/xv_driver.c
+        xvisio/xv_prober.c
+        xvisio/xv_interface.h
+    )
+    target_link_libraries(drv_xvisio PRIVATE
+        xrt-interfaces
+        aux_util
+        # Add any Xvisio SDK libraries here, for example:
+        # xvsdk::xvsdk
+    )
+    target_include_directories(drv_xvisio PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+    )
+    list(APPEND DRIVER_LIBRARIES drv_xvisio)
+    list(APPEND ENABLED_HEADSET_DRIVERS xv)
+endif()
+
 if(XRT_BUILD_DRIVER_REMOTE)
 	add_library(
 		drv_remote STATIC

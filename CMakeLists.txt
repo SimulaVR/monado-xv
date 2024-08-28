@@ -105,6 +105,7 @@ find_package(
 find_package(Libusb1 MODULE)
 find_package(JPEG MODULE)
 find_package(realsense2 CONFIG)
+find_package(xvsdk CONFIG)
 find_package(depthai CONFIG)
 find_package(SDL2 CONFIG)
 find_package(ZLIB MODULE)
@@ -202,9 +203,10 @@ set(ILLIXR_PATH
 option(BUILD_TESTING "Enable building of the test suite?" ON)
 
 # Check if Steam's root folder exists
-if(EXISTS "$ENV{HOME}/.steam/root")
-	set(XRT_HAVE_STEAM YES)
-endif()
+# For our nix build, we force this to be on:
+# if(EXISTS "$ENV{HOME}/.steam/root")
+set(XRT_HAVE_STEAM YES)
+# endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	set(XRT_HAVE_INTERNAL_HID ON)
@@ -299,6 +301,7 @@ option_with_deps(XRT_HAVE_JPEG "Enable jpeg code (used for some video drivers)" 
 option_with_deps(XRT_HAVE_LIBUSB "Enable libusb (used for most drivers)" DEPENDS LIBUSB1_FOUND)
 option_with_deps(XRT_HAVE_LIBUVC "Enable libuvc video driver" DEPENDS LIBUVC_FOUND XRT_HAVE_LIBUSB)
 option_with_deps(XRT_HAVE_REALSENSE "Enable RealSense support" DEPENDS realsense2_FOUND)
+option_with_deps(XRT_HAVE_XVISIO "Enable Xvisio support" DEPENDS xvsdk_FOUND)
 option_with_deps(XRT_HAVE_OPENVR "Enable OpenVR support" DEPENDS OPENVR_FOUND)
 
 # Drivers to build (sorted)
@@ -320,6 +323,7 @@ option_with_deps(XRT_BUILD_DRIVER_PSSENSE "Enable PlayStation Sense driver" DEPE
 option_with_deps(XRT_BUILD_DRIVER_PSVR "Enable PSVR HMD driver" DEPENDS XRT_HAVE_HIDAPI)
 option_with_deps(XRT_BUILD_DRIVER_QWERTY "Enable Qwerty driver" DEPENDS XRT_HAVE_SDL2)
 option_with_deps(XRT_BUILD_DRIVER_REALSENSE "Enable RealSense device driver" DEPENDS XRT_HAVE_REALSENSE)
+option_with_deps(XRT_BUILD_DRIVER_XVISIO "Enable Xvisio device driver" DEPENDS XRT_HAVE_XVISIO)
 option_with_deps(XRT_BUILD_DRIVER_REMOTE "Enable remote debugging driver" DEPENDS "XRT_HAVE_LINUX OR ANDROID OR WIN32")
 option_with_deps(XRT_BUILD_DRIVER_RIFT_S "Enable Oculus Rift S device driver" DEPENDS XRT_HAVE_V4L2)
 option_with_deps(XRT_BUILD_DRIVER_ROKID "Enable Rokid driver" DEPENDS "XRT_HAVE_LIBUSB")
@@ -331,7 +335,7 @@ option_with_deps(XRT_BUILD_DRIVER_VF "Build video frame driver (for video file s
 option_with_deps(XRT_BUILD_DRIVER_VIVE "Enable driver for HTC Vive, Vive Pro, Valve Index, and their controllers" DEPENDS ZLIB_FOUND XRT_HAVE_LINUX XRT_MODULE_AUX_VIVE)
 option_with_deps(XRT_BUILD_DRIVER_WMR "Enable Windows Mixed Reality driver" DEPENDS "NOT WIN32")
 option_with_deps(XRT_BUILD_DRIVER_XREAL_AIR "Enable Xreal Air HMD driver" DEPENDS XRT_HAVE_HIDAPI)
-option_with_deps(XRT_BUILD_DRIVER_SIMULAVR "Enable simula driver" DEPENDS XRT_HAVE_REALSENSE)
+option_with_deps(XRT_BUILD_DRIVER_SIMULAVR "Enable simula driver" DEPENDS XRT_HAVE_XVISIO)
 option(XRT_BUILD_DRIVER_SIMULATED "Enable simulated driver" ON)
 
 option(XRT_BUILD_SAMPLES "Enable compiling sample code implementations that will not be linked into any final targets" ON)
@@ -409,6 +413,7 @@ list(
 	"PSSENSE"
 	"PSVR"
 	"REALSENSE"
+	"XVISIO"
 	"REMOTE"
 	"RIFT_S"
 	"ROKID"
@@ -550,6 +555,7 @@ message(STATUS "#    OPENGLES:        ${XRT_HAVE_OPENGLES}")
 message(STATUS "#    OPENGL_GLX:      ${XRT_HAVE_OPENGL_GLX}")
 message(STATUS "#    PERCETTO:        ${XRT_HAVE_PERCETTO}")
 message(STATUS "#    REALSENSE:       ${XRT_HAVE_REALSENSE}")
+message(STATUS "#    XVISIO:          ${XRT_HAVE_XVSIO}")
 message(STATUS "#    OPENVR:          ${XRT_HAVE_OPENVR}")
 message(STATUS "#    SDL2:            ${XRT_HAVE_SDL2}")
 message(STATUS "#    SYSTEM_CJSON:    ${XRT_HAVE_SYSTEM_CJSON}")
@@ -633,6 +639,7 @@ message(STATUS "#    DRIVER_PSSENSE:              ${XRT_BUILD_DRIVER_PSSENSE}")
 message(STATUS "#    DRIVER_PSVR:                 ${XRT_BUILD_DRIVER_PSVR}")
 message(STATUS "#    DRIVER_QWERTY:               ${XRT_BUILD_DRIVER_QWERTY}")
 message(STATUS "#    DRIVER_REALSENSE:            ${XRT_BUILD_DRIVER_REALSENSE}")
+message(STATUS "#    DRIVER_XVISIO:               ${XRT_BUILD_DRIVER_XVISIO}")
 message(STATUS "#    DRIVER_REMOTE:               ${XRT_BUILD_DRIVER_REMOTE}")
 message(STATUS "#    DRIVER_RIFT_S:               ${XRT_BUILD_DRIVER_RIFT_S}")
 message(STATUS "#    DRIVER_ROKID:                ${XRT_BUILD_DRIVER_ROKID}")

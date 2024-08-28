@@ -8,6 +8,7 @@
  */
 
 #include "multi_wrapper/multi.h"
+#include "xvisio/xv_interface.h"
 #include "realsense/rs_interface.h"
 #include "tracking/t_hand_tracking.h"
 #include "tracking/t_tracking.h"
@@ -171,6 +172,7 @@ svr_estimate_system(struct xrt_builder *xb, cJSON *config, struct xrt_prober *xp
 		return xret;
 	}
 
+  /*
 	bool movidius = u_builder_find_prober_device(xpdevs, xpdev_count, REALSENSE_MOVIDIUS_VID,
 	                                             REALSENSE_MOVIDIUS_PID, XRT_BUS_TYPE_USB);
 	bool tm2 =
@@ -183,7 +185,14 @@ svr_estimate_system(struct xrt_builder *xb, cJSON *config, struct xrt_prober *xp
 
 	// I think that ideally we want `movidius` - in that case I think when we grab the device, it reboots to
 	// `tm2`
+  */
 
+  bool xvisio_present = u_builder_find_prober_device(xpdevs, xpdev_count, XVISIO_VID, XVISIO_PID, XRT_BUS_TYPE_USB);
+
+  if (!xvisio_present) {
+      U_LOG_E("Simula enabled but couldn't find Xvisio device!");
+      return XRT_SUCCESS;
+  }
 
 	estimate->maybe.head = true;
 	estimate->certain.head = true;
@@ -204,20 +213,30 @@ svr_open_system_impl(struct xrt_builder *xb,
 	struct simula_builder *sb = (struct simula_builder *)xb;
 	xrt_result_t result = XRT_SUCCESS;
 
-	struct xrt_device *t265_dev = rs_create_tracked_device_internal_slam();
+	/* struct xrt_device *t265_dev = rs_create_tracked_device_internal_slam();
 	if (t265_dev == NULL) {
 		SVR_ERROR("Failed to open T265 device!");
 		result = XRT_ERROR_DEVICE_CREATION_FAILED;
 		goto end;
-	}
+	} */
+  struct xrt_device *xv50_dev = xv_create_tracked_device_internal_slam();
+  if (xv50_dev == NULL) {
+      SVR_ERROR("Failed to open Xvisio SeerSense XR50 device!");
+      result = XRT_ERROR_DEVICE_CREATION_FAILED;
+      goto end;
+  } 
 
 	struct xrt_device *svr_dev = svr_hmd_create(&sb->display_distortion);
 
 	struct xrt_pose ident = XRT_POSE_IDENTITY;
 
 
+  /*
 	struct xrt_device *head_device = multi_create_tracking_override(
 	    XRT_TRACKING_OVERRIDE_ATTACHED, svr_dev, t265_dev, XRT_INPUT_GENERIC_TRACKER_POSE, &ident);
+ */
+  struct xrt_device *head_device = multi_create_tracking_override(
+    XRT_TRACKING_OVERRIDE_ATTACHED, svr_dev, xv50_dev, XRT_INPUT_GENERIC_TRACKER_POSE, &ident);
 
 	// Add to device list.
 	xsysd->xdevs[xsysd->xdev_count++] = head_device;
@@ -261,3 +280,4 @@ t_builder_simula_create(void)
 
 	return &sb->base.base;
 }
+

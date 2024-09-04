@@ -219,11 +219,12 @@ if(XRT_BUILD_DRIVER_XVISIO)
     target_link_libraries(drv_xvisio PRIVATE
         xrt-interfaces
         aux_util
-        # Add any Xvisio SDK libraries here, for example:
-        # xvsdk::xvsdk
+        ${XVSDK_LIBRARY_DIR}/libxvsdk.so
+        ${XVSDK_LIBRARY_DIR}/libxv_c_wrapper.so
     )
     target_include_directories(drv_xvisio PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${XVSDK_INCLUDE_DIR}
     )
     list(APPEND DRIVER_LIBRARIES drv_xvisio)
     list(APPEND ENABLED_HEADSET_DRIVERS xv)

@@ -63,8 +63,8 @@ let
   xvsdkSrc = fetchFromGitHub {
     owner = "SimulaVR";
     repo = "xvsdk";
-    rev = "b7c274d435bbeb85a4238da318cf890a74c28623";
-    sha256 = "1p6kxsixq3k7mg4f3199a0rf5bqvvkx6c9wpqfphf43als8w1zd9";
+    rev = "c58f6e022742841c8dc9a476ec80eb37416c0332";
+    sha256 = "14lfh2m1zfpgqi5y6x1pkckr0gk9x9q1d33q04lgxkggm8ipprsb";
   };
   xvsdk = callPackage (xvsdkSrc + "/xvsdk.nix") { };
 in
@@ -95,6 +95,8 @@ stdenv.mkDerivation {
     "-DXRT_OPENXR_INSTALL_ABSOLUTE_RUNTIME_PATH=ON"
     "-DXRT_BUILD_DRIVER_SIMULAVR=ON"
     "-DXRT_HAVE_XVISIO=ON"
+    "-DXVSDK_INCLUDE_DIR=${xvsdk}/include"
+    "-DXVSDK_LIBRARY_DIR=${xvsdk}/lib"
   ];
     # "-DXRT_HAVE_REALSENSE=ON"
     # "-DCMAKE_INCLUDE_PATH=${librealsense.dev}/include:$CMAKE_INCLUDE_PATH"

@@ -35,16 +35,6 @@ struct xrt_auto_prober *
 xv_create_auto_prober(void);
 
 /*!
- * Creates a Xvisio SLAM source.
- *
- * @param xfctx Frame context this frameserver lifetime is tied to.
- * @param device_idx Index of the Xvisio device to use.
- * @return Frameserver with SLAM streaming capabilities.
- */
-struct xrt_fs *
-xv_source_create(struct xrt_frame_context *xfctx, int device_idx);
-
-/*!
  * Creates an xrt_device that exposes the tracking of a Xvisio device
  * @return An xrt_device that you can call get_tracked_pose on with XRT_INPUT_GENERIC_TRACKER_POSE
  */

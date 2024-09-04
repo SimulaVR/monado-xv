@@ -16,8 +16,24 @@
 
 #include "xv_interface.h"
 
-DEBUG_GET_ONCE_LOG_OPTION(xv_log, "XV_LOG", U_LOGGING_WARN)
+DEBUG_GET_ONCE_LOG_OPTION(xv_log, "XV_LOG", U_LOGGING_WARN) //defines debug_get_log_option_xv_log()
 
+/*  Allows e.g. `XV_TRACE(p, "This is a trace log with value %d", some_value);`
+    which expands to `U_LOG_IFL_T(p->log_level, "This is a trace log with value %d", some_value);`
+    which expands to `U_LOG_IFL(U_LOGGING_TRACE, p->log_level, "This is a trace log with value %d", some_value);`
+    which expands to
+    ```
+    do {
+    if (p->log_level <= U_LOGGING_TRACE) {
+    u_log(__FILE__, __LINE__, __func__, U_LOGGING_TRACE, "This is a trace log with value %d", some_value);
+    }
+    } while (false);
+    ```
+
+    IFL likely stands for "IF-LOG-LEVEL"
+
+    https://chatgpt.com/c/32974646-a09e-40e1-ae86-11bbabda6fac
+ */
 #define XV_TRACE(p, ...) U_LOG_IFL_T(p->log_level, __VA_ARGS__)
 #define XV_DEBUG(p, ...) U_LOG_IFL_D(p->log_level, __VA_ARGS__)
 #define XV_INFO(p, ...) U_LOG_IFL_I(p->log_level, __VA_ARGS__)
@@ -27,7 +43,7 @@ DEBUG_GET_ONCE_LOG_OPTION(xv_log, "XV_LOG", U_LOGGING_WARN)
 struct xv_prober
 {
     struct xrt_auto_prober base;
-    enum u_logging_level log_level;
+    enum u_logging_level log_level; //used by XV_* macros above
 };
 
 static inline struct xv_prober *
@@ -57,6 +73,8 @@ xv_prober_autoprobe(struct xrt_auto_prober *xap,
     if (!xdev) {
         return 0;
     }
+
+    XV_DEBUG(xvp, "xv_create_tracked_device_internal_slam() called");
 
     out_xdevs[0] = xdev;
     return 1;

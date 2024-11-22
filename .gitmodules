@@ -1,0 +1,3 @@
+[submodule "submodules/xvsdk"]
+	path = submodules/xvsdk
+	url = https://github.com/SimulaVR/xvsdk.git

@@ -58,15 +58,8 @@
 , callPackage
 , fetchFromGitHub
 }:
-
 let 
-  xvsdkSrc = fetchFromGitHub {
-    owner = "SimulaVR";
-    repo = "xvsdk";
-    rev = "c58f6e022742841c8dc9a476ec80eb37416c0332";
-    sha256 = "14lfh2m1zfpgqi5y6x1pkckr0gk9x9q1d33q04lgxkggm8ipprsb";
-  };
-  xvsdk = callPackage (xvsdkSrc + "/xvsdk.nix") { };
+ xvsdk = callPackage ./submodules/xvsdk/xvsdk.nix { };
 in
 
 stdenv.mkDerivation {
@@ -98,9 +91,6 @@ stdenv.mkDerivation {
     "-DXVSDK_INCLUDE_DIR=${xvsdk}/include"
     "-DXVSDK_LIBRARY_DIR=${xvsdk}/lib"
   ];
-    # "-DXRT_HAVE_REALSENSE=ON"
-    # "-DCMAKE_INCLUDE_PATH=${librealsense.dev}/include:$CMAKE_INCLUDE_PATH"
-    # "-DCMAKE_PREFIX_PATH=${librealsense.dev}:$CMAKE_PREFIX_PATH"
 
   buildInputs = [
     bluez
@@ -145,7 +135,6 @@ stdenv.mkDerivation {
     wayland-scanner
     zlib
     zstd
-
     xvsdk 
   ];
 
@@ -165,6 +154,11 @@ stdenv.mkDerivation {
     # We don't have $HOME/.steam when building
   # ./force-enable-steamvr_lh.patch
   # ];
+
+  # Expose xvsdk for shell.nix
+  passthru = {
+      inherit xvsdk;
+  };
 
   passthru.tests = {
     basic-service = nixosTests.monado;

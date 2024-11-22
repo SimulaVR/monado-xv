@@ -27,6 +27,7 @@
 #include "xv_c_wrapper.h"
 
 
+
 // #include <xvsdk.h>
 
 DEBUG_GET_ONCE_LOG_OPTION(xv_log, "XV_LOG", U_LOGGING_WARN)
@@ -52,9 +53,13 @@ struct xv_device
 static void
 xv_orientation_callback(const C_Orientation* orientation)
 {
-    XV_DEBUG(g_xv_device, "xv_orientation_callback fired");
+	XV_DEBUG(g_xv_device, "xv_orientation_callback fired");
 
-    if (g_xv_device == NULL) {
+	printf("xv_orientation_callback(..)\n");
+
+	if (g_xv_device == NULL) {
+	printf("g_xv_device is NULL so returning early from xv_orientation_callback\n");
+	//snprintf(xdev->serial, XRT_DEVICE_NAME_LEN, "g_xv_device is NULL so returning early from xv_orientation_callback (printf)");
         return;
     }
 
@@ -91,6 +96,60 @@ xv_orientation_callback(const C_Orientation* orientation)
     m_relation_history_push(g_xv_device->relation_hist, &relation, timestamp_ns);
 }
 
+//6dof version of the above
+static void
+xv_pose_callback(const C_Pose* pose)
+{
+    XV_DEBUG(g_xv_device, "xv_pose_callback fired");
+
+    printf("xv_pose_callback(..)\n");
+    if (g_xv_device == NULL) {
+	printf("g_xv_device is NULL so returning early from xv_pose_callback");
+        return;
+    }
+
+    struct xrt_space_relation relation = {0};
+
+    // Set orientation (quaternion)
+    relation.pose.orientation.x = pose->quaternion[0];
+    relation.pose.orientation.y = pose->quaternion[1];
+    relation.pose.orientation.z = pose->quaternion[2];
+    relation.pose.orientation.w = pose->quaternion[3];
+
+    // Set position (translation)
+    relation.pose.position.x = pose->position[0];
+    relation.pose.position.y = pose->position[1];
+    relation.pose.position.z = pose->position[2];
+
+    // Set velocities
+    relation.linear_velocity.x = pose->linearVelocity[0];
+    relation.linear_velocity.y = pose->linearVelocity[1];
+    relation.linear_velocity.z = pose->linearVelocity[2];
+
+    relation.angular_velocity.x = pose->angularVelocity[0];
+    relation.angular_velocity.y = pose->angularVelocity[1];
+    relation.angular_velocity.z = pose->angularVelocity[2];
+
+    // Update flags to indicate we have full tracking
+    relation.relation_flags =
+        XRT_SPACE_RELATION_ORIENTATION_VALID_BIT |
+        XRT_SPACE_RELATION_POSITION_VALID_BIT |
+        XRT_SPACE_RELATION_LINEAR_VELOCITY_VALID_BIT |
+        XRT_SPACE_RELATION_ANGULAR_VELOCITY_VALID_BIT |
+        XRT_SPACE_RELATION_ORIENTATION_TRACKED_BIT |
+        XRT_SPACE_RELATION_POSITION_TRACKED_BIT;
+
+    uint64_t now_real_ns = os_realtime_get_ns();
+    uint64_t now_monotonic_ns = os_monotonic_get_ns();
+    uint64_t pose_timestamp_ns = (uint64_t)(pose->hostTimestamp * 1000.0);
+
+    // Calculate the difference and adjust monotonic time
+    int64_t diff_ns = now_real_ns - pose_timestamp_ns;
+    uint64_t timestamp_ns = now_monotonic_ns - diff_ns;
+
+    m_relation_history_push(g_xv_device->relation_hist, &relation, timestamp_ns);
+}
+
 static inline struct xv_device *
 xv_device(struct xrt_device *xdev)
 {
@@ -119,7 +178,7 @@ xv_device_get_tracked_pose(struct xrt_device *xdev,
                            struct xrt_space_relation *out_relation)
 {
 	struct xv_device *xv = xv_device(xdev);
-
+        printf("xv_device_get_tracked_pose(..)\n");
 	if (name != XRT_INPUT_GENERIC_TRACKER_POSE) {
 		XV_ERROR(xv, "xv_device_get_tracked_pose called with unknown input name");
 		return;
@@ -131,27 +190,28 @@ xv_device_get_tracked_pose(struct xrt_device *xdev,
 struct xrt_device *
 xv_create_tracked_device_internal_slam(void)
 {
-    struct xv_device *xv = U_DEVICE_ALLOCATE(struct xv_device, U_DEVICE_ALLOC_TRACKING_NONE, 1, 0);
-    struct xrt_device *xdev = &xv->base;
+	struct xv_device *xv = U_DEVICE_ALLOCATE(struct xv_device, U_DEVICE_ALLOC_TRACKING_NONE, 1, 0);
+	struct xrt_device *xdev = &xv->base;
 
-    xv->log_level = debug_get_log_option_xv_log();
+	xv->log_level = debug_get_log_option_xv_log();
 
-    xdev->update_inputs = u_device_noop_update_inputs;
-    xdev->get_tracked_pose = xv_device_get_tracked_pose;
-    xdev->destroy = xv_device_destroy;
-    xdev->name = XRT_DEVICE_GENERIC_HMD;
-    xdev->device_type = XRT_DEVICE_TYPE_HMD;
+	xdev->update_inputs = u_device_noop_update_inputs;
+	xdev->get_tracked_pose = xv_device_get_tracked_pose;
+	xdev->destroy = xv_device_destroy;
+	xdev->name = XRT_DEVICE_GENERIC_HMD;
+	xdev->device_type = XRT_DEVICE_TYPE_HMD;
 
-    snprintf(xdev->str, XRT_DEVICE_NAME_LEN, "Xvisio SeerSense XR50");
-    snprintf(xdev->serial, XRT_DEVICE_NAME_LEN, "Xvisio SeerSense XR50");
+	snprintf(xdev->str, XRT_DEVICE_NAME_LEN, "Xvisio SeerSense XR50");
+	snprintf(xdev->serial, XRT_DEVICE_NAME_LEN, "Xvisio SeerSense XR50");
 
-    xdev->tracking_origin->type = XRT_TRACKING_TYPE_EXTERNAL_SLAM;
+	xdev->tracking_origin->type = XRT_TRACKING_TYPE_EXTERNAL_SLAM;
 
-    xdev->inputs[0].name = XRT_INPUT_GENERIC_TRACKER_POSE;
+	xdev->inputs[0].name = XRT_INPUT_GENERIC_TRACKER_POSE;
 
-    m_relation_history_create(&xv->relation_hist);
+	m_relation_history_create(&xv->relation_hist);
 
-    const char* device_id = xv_init();
+    //const char* device_id = xv_init_and_start_imu(xv_orientation_callback); //uncomment for just orientation tracking
+    const char* device_id = xv_init_and_start_slam(xv_pose_callback);
     if (device_id == NULL) {
         XV_ERROR(xv, "Failed to initialize Xvisio device");
         xv_device_destroy(xdev);
@@ -161,10 +221,6 @@ xv_create_tracked_device_internal_slam(void)
     XV_DEBUG(xv, "Xvisio device created with ID: %s", device_id);
 
     g_xv_device = xv;
-
-    // This should initiate the callback loop (don't think we need to do this on a seperate thread since xvsdk already does this for us?)
-    xv_set_orientation_callback(xv_orientation_callback);
-    XV_DEBUG(xv, "xv_set_orientation_callback(...) called for device %s", device_id);
 
     return xdev;
 }

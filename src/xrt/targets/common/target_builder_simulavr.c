@@ -224,7 +224,7 @@ svr_open_system_impl(struct xrt_builder *xb,
       SVR_ERROR("Failed to open Xvisio SeerSense XR50 device!");
       result = XRT_ERROR_DEVICE_CREATION_FAILED;
       goto end;
-  } 
+  }
 
 	struct xrt_device *svr_dev = svr_hmd_create(&sb->display_distortion);
 
@@ -280,4 +280,3 @@ t_builder_simula_create(void)
 
 	return &sb->base.base;
 }
-

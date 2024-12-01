@@ -53,11 +53,7 @@ struct xv_device
 static void
 xv_orientation_callback(const C_Orientation* orientation)
 {
-	XV_DEBUG(g_xv_device, "xv_orientation_callback fired");
-
-	printf("xv_orientation_callback(..)\n");
-
-	if (g_xv_device == NULL) {
+    if (g_xv_device == NULL) {
 	printf("g_xv_device is NULL so returning early from xv_orientation_callback\n");
 	//snprintf(xdev->serial, XRT_DEVICE_NAME_LEN, "g_xv_device is NULL so returning early from xv_orientation_callback (printf)");
         return;
@@ -85,24 +81,26 @@ xv_orientation_callback(const C_Orientation* orientation)
     relation.relation_flags = XRT_SPACE_RELATION_ORIENTATION_VALID_BIT |
                               XRT_SPACE_RELATION_ORIENTATION_TRACKED_BIT;
 
-    uint64_t now_real_ns = os_realtime_get_ns();
-    uint64_t now_monotonic_ns = os_monotonic_get_ns();
-    uint64_t orientation_timestamp_ns = (uint64_t)(orientation->hostTimestamp * 1000.0); // Convert microseconds (hostTimestamp) to nanoseconds
-
-    // Calculate the difference and adjust monotonic time (following realsense logic)
-    int64_t diff_ns = now_real_ns - orientation_timestamp_ns;
-    uint64_t timestamp_ns = now_monotonic_ns - diff_ns;
-
+    //Then push to the relation history
+    uint64_t timestamp_ns = os_monotonic_get_ns();
     m_relation_history_push(g_xv_device->relation_hist, &relation, timestamp_ns);
 }
 
-//6dof version of the above
+//6dof version of the xv_orientation_callback
 static void
 xv_pose_callback(const C_Pose* pose)
 {
-    XV_DEBUG(g_xv_device, "xv_pose_callback fired");
+    //Print 6dof data for debugging purposes
+    /*
+    XV_DEBUG(g_xv_device, "xv_pose_callback fired with pose: p=(%f,%f,%f), q=(%f,%f,%f,%f), conf=%f",
+             pose->position[0], pose->position[1], pose->position[2],
+             pose->quaternion[0], pose->quaternion[1], pose->quaternion[2], pose->quaternion[3],
+             pose->confidence);
 
-    printf("xv_pose_callback(..)\n");
+	printf("xv_pose_callback: Received pose timestamp=%f\n", pose->hostTimestamp);
+    */
+
+
     if (g_xv_device == NULL) {
 	printf("g_xv_device is NULL so returning early from xv_pose_callback");
         return;
@@ -139,13 +137,7 @@ xv_pose_callback(const C_Pose* pose)
         XRT_SPACE_RELATION_ORIENTATION_TRACKED_BIT |
         XRT_SPACE_RELATION_POSITION_TRACKED_BIT;
 
-    uint64_t now_real_ns = os_realtime_get_ns();
-    uint64_t now_monotonic_ns = os_monotonic_get_ns();
-    uint64_t pose_timestamp_ns = (uint64_t)(pose->hostTimestamp * 1000.0);
-
-    // Calculate the difference and adjust monotonic time
-    int64_t diff_ns = now_real_ns - pose_timestamp_ns;
-    uint64_t timestamp_ns = now_monotonic_ns - diff_ns;
+    uint64_t timestamp_ns = os_monotonic_get_ns();
 
     m_relation_history_push(g_xv_device->relation_hist, &relation, timestamp_ns);
 }
@@ -170,7 +162,6 @@ xv_device_destroy(struct xrt_device *xdev)
 	u_device_free(xdev);
 }
 
-
 static void
 xv_device_get_tracked_pose(struct xrt_device *xdev,
                            enum xrt_input_name name,
@@ -178,7 +169,6 @@ xv_device_get_tracked_pose(struct xrt_device *xdev,
                            struct xrt_space_relation *out_relation)
 {
 	struct xv_device *xv = xv_device(xdev);
-        printf("xv_device_get_tracked_pose(..)\n");
 	if (name != XRT_INPUT_GENERIC_TRACKER_POSE) {
 		XV_ERROR(xv, "xv_device_get_tracked_pose called with unknown input name");
 		return;
@@ -210,8 +200,9 @@ xv_create_tracked_device_internal_slam(void)
 
 	m_relation_history_create(&xv->relation_hist);
 
-    //const char* device_id = xv_init_and_start_imu(xv_orientation_callback); //uncomment for just orientation tracking
     const char* device_id = xv_init_and_start_slam(xv_pose_callback);
+    //const char* device_id = xv_init_and_start_imu(xv_orientation_callback); //uncomment for just orientation tracking
+
     if (device_id == NULL) {
         XV_ERROR(xv, "Failed to initialize Xvisio device");
         xv_device_destroy(xdev);

@@ -21,6 +21,7 @@ let
         -DXRT_OPENXR_INSTALL_ABSOLUTE_RUNTIME_PATH=ON \
         -DXRT_BUILD_DRIVER_SIMULAVR=ON \
         -DXRT_HAVE_XVISIO=ON \
+        -DXRT_HAVE_LIBUVC=OFF \
         -DXVSDK_INCLUDE_DIR=${monado.xvsdk}/include \
         -DXVSDK_LIBRARY_DIR=${monado.xvsdk}/lib
     fi

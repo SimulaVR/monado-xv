@@ -5,6 +5,9 @@ This repo is forked monado repo by SimulaVR team.
 ```sh
 # Build with Nix!!
 nix build .?submodules=1#default
+
+# Or use justfile
+just
 ```
 
 # Monado - XR Runtime (XRT)

@@ -46,8 +46,8 @@
               # Development tools
               pkgs.nil
 
-# Build tools
-pkgs.just
+              # Build tools
+              pkgs.just
               pkgs.cmake
               pkgs.doxygen
               pkgs.glslang
@@ -101,6 +101,10 @@ pkgs.just
 
               xvsdk
             ];
+
+            # Environment variables to pass cmake through just command
+            XVSDK_INCLUDE_DIR = "${xvsdk}/include";
+            XVSDK_LIBRARY_DIR = "${xvsdk}/lib";
 
             shellHook = ''
               export PS1="\n[nix-shell:\w]$ "

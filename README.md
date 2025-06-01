@@ -1,3 +1,12 @@
+# monado-xv
+
+This repo is forked monado repo by SimulaVR team.
+
+```sh
+# Build with Nix!!
+nix build .?submodules=1#default
+```
+
 # Monado - XR Runtime (XRT)
 
 <!--

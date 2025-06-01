@@ -1,51 +1,111 @@
-# Copyright 2024, Gavin John <gavinnjohn@gmail.com>
-# SPDX-License-Identifier: CC0-1.0 OR MIT OR BSL-1.0
-
 {
   inputs = {
-    # Whenever an upstream change is merged, update this to
-    # the relevant commit and remove the packages from the
-    # ...ToUpstream lists below
-    nixpkgs.url = "github:NixOS/nixpkgs/e80d1b630036fe33badbc168dfcd071d463b92cf";
-    flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:nixos/nixpkgs/63dacb46bf939521bdc93981b4cbb7ecb58427a0";
+    systems.url = "github:nix-systems/x86_64-linux";
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }: flake-utils.lib.eachDefaultSystem (system:
-    let
-      pkgs = nixpkgs.legacyPackages.${system};
+  outputs =
+    inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = import inputs.systems;
 
-      devTools = with pkgs; [
-        # Tools that are required in order to develop with Monado, but that are not required to build Monado itself
-        # These cannot be upstreamed into nixpkgs, as they are not required to build Monado
-        # See https://github.com/NixOS/nix/issues/7501 for a discussion on this
-        clang
-        cmake-format
-        git
-        gradle
-        gradle-completion
-      ];
+      imports = [ inputs.treefmt-nix.flakeModule ];
 
-      nativeBuildInputsToUpstream = with pkgs; [
-        # If there are any nativeBuildInputs that are not in nixpkgs, add them here
-        # nativeBuildInputs are packages that are needed to develop and/or build the project (i.e. tooling)
-      ];
+      perSystem =
+        { pkgs, system, ... }:
+        let
+          monado-xv = pkgs.callPackage ./. { };
+          xvsdk = pkgs.callPackage ./submodules/xvsdk/xvsdk.nix { }; # submodules dependency
+        in
+        {
+          _module.args.pkgs = import inputs.nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
 
-      buildInputsToUpstream = with pkgs; [
-        # If there are any buildInputs that are not in nixpkgs, add them here
-        # buildInputs are any packages that are needed at runtime (i.e. dependencies)
-      ];
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs.nixfmt.enable = true;
+          };
 
-      package = pkgs.monado.overrideAttrs (oldAttrs: {
-        src = ./.;
+          packages = {
+            inherit monado-xv;
+            default = monado-xv;
+          };
 
-        nativeBuildInputs = oldAttrs.nativeBuildInputs ++ nativeBuildInputsToUpstream ++ devTools;
-        buildInputs = oldAttrs.buildInputs ++ buildInputsToUpstream;
+          devShells.default = pkgs.mkShell rec {
+            nativeBuildInputs = [
+              # Development tools
+              pkgs.nil
 
-        patches = [];
-      });
-    in {
-      packages.default = package;
-      devShells.default = package;
-    }
-  );
+# Build tools
+pkgs.just
+              pkgs.cmake
+              pkgs.doxygen
+              pkgs.glslang
+              pkgs.pkg-config
+              pkgs.python3
+            ];
+
+            buildInputs = [
+              pkgs.bluez
+              pkgs.cjson
+              pkgs.dbus
+              pkgs.eigen
+              pkgs.elfutils
+              pkgs.ffmpeg
+              pkgs.gst_all_1.gst-plugins-base
+              pkgs.gst_all_1.gstreamer
+              pkgs.hidapi
+              pkgs.libbsd
+              pkgs.libdrm
+              pkgs.libffi
+              pkgs.libGL
+              pkgs.libjpeg
+              pkgs.librealsense
+              pkgs.libsurvive
+              pkgs.libunwind
+              pkgs.libusb1
+              pkgs.libuv
+              pkgs.libuvc
+              pkgs.libv4l
+              pkgs.xorg.libXau
+              pkgs.xorg.libxcb
+              pkgs.xorg.libXdmcp
+              pkgs.xorg.libXext
+              pkgs.xorg.libXrandr
+              pkgs.onnxruntime
+              pkgs.opencv4
+              pkgs.openhmd
+              pkgs.openvr
+              pkgs.orc
+              pkgs.pcre2
+              pkgs.SDL2
+              pkgs.shaderc
+              pkgs.udev
+              pkgs.vulkan-headers
+              pkgs.vulkan-loader
+              pkgs.wayland
+              pkgs.wayland-protocols
+              pkgs.wayland-scanner
+              pkgs.zlib
+              pkgs.zstd
+
+              xvsdk
+            ];
+
+            shellHook = ''
+              export PS1="\n[nix-shell:\w]$ "
+            '';
+          };
+        };
+    };
 }

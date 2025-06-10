@@ -254,6 +254,10 @@ svr_hmd_create(struct svr_two_displays_distortion *distortion)
 
 	u_extents_2d_split_side_by_side(&svr->base, &exts);
 
+
+	// rotate leye by 180
+	svr->base.hmd->views[0].rot = u_device_rotation_180;
+
 	for (int view = 0; view < 2; view++) {
 		svr->base.hmd->distortion.fov[view].angle_left = -svr->distortion.views[view].half_fov;
 		svr->base.hmd->distortion.fov[view].angle_right = svr->distortion.views[view].half_fov;

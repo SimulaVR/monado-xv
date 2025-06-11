@@ -36,8 +36,16 @@
 
 #include <assert.h>
 
+#include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdio.h>
+
 DEBUG_GET_ONCE_OPTION(simula_config_path, "SIMULA_CONFIG_PATH", NULL)
-DEBUG_GET_ONCE_LOG_OPTION(svr_log, "SIMULA_LOG", U_LOGGING_WARN)
+	DEBUG_GET_ONCE_LOG_OPTION(svr_log, "SIMULA_LOG", U_LOGGING_WARN)
 
 
 #define SVR_TRACE(...) U_LOG_IFL_T(debug_get_log_option_svr_log(), __VA_ARGS__)
@@ -45,6 +53,101 @@ DEBUG_GET_ONCE_LOG_OPTION(svr_log, "SIMULA_LOG", U_LOGGING_WARN)
 #define SVR_INFO(...) U_LOG_IFL_I(debug_get_log_option_svr_log(), __VA_ARGS__)
 #define SVR_WARN(...) U_LOG_IFL_W(debug_get_log_option_svr_log(), __VA_ARGS__)
 #define SVR_ERROR(...) U_LOG_IFL_E(debug_get_log_option_svr_log(), __VA_ARGS__)
+
+/*
+ * The following is used to check if a Simula One is connected. For the time being,
+ * we have to check system EDID files for this, looking for one that has "SVR" as
+ * its VendorName.
+ *
+ * The EDID specification is at https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
+ *
+ *
+ * ```
+ * EDID Bytes 8–9: Manufacturer ID
+ * ------------------------------------------------------------
+ * This is a legacy Plug and Play ID (PNPID) assigned by the UEFI forum.
+ * It is a **big-endian 16-bit value** composed of three 5-bit letter codes.
+ *
+ * Each letter is encoded as a 5-bit value: A = 00001 (1), ..., Z = 11010 (26).
+ *
+ * The format of the 16 bits is as follows:
+ *
+ *   Bit(s)     Field Description
+ *  ---------   ---------------------------------------------------------
+ *   15         Reserved (always 0)
+ *   14–10      First letter  (byte 8, bits 6–2)
+ *    9–5       Second letter (byte 8, bit 1 + byte 9, bits 7–5)
+ *    4–0       Third letter  (byte 9, bits 4–0)
+ *
+ * Example:
+ *   "IBM" → 'I' = 01001, 'B' = 00010, 'M' = 01101
+ *         → Binary: 0 01001 00010 01101
+ *         → Hex:    0x244D
+ * ```
+ *
+ * In Simula's case, 'S' 'V' 'R' is packed into a 16-bit vendor ID as follows:
+ *
+ *   Char   ASCII   Code = ASCII - 64   5-bit Binary
+ *   -----  -----   ------------------   -------------
+ *     S      83          19              10011
+ *     V      86          22              10110
+ *     R      82          18              10010
+ *
+ *   Final 15-bit binary: 10011 10110 10010
+ *   With 0 prepended at beginning: 0 10011 10110 10010
+ *   Converted to 16-bit hex: 0x4ED2
+ *
+ */
+
+#define SVR_EDID_MFG 0x4ED2u
+
+//Allows us to parse e.g. { 0x4E, 0xED } as 0x4ED2 when reading the 8th byte of the EDID file when looking for "SVR" bits in EDID format
+static uint16_t u16(const uint8_t *p) {
+    return ((uint16_t)p[0] << 8) | p[1];
+}
+
+// Return true iff there is a `/sys/class/drm/*` s.t.
+//  1. `*` starts with "card" and has at least one "-" in it.
+//  2. `/sys/class/drm/*/status == "connected"`
+//  3. The 8th byte of `/sys/class/drm/*/edid` reads as `SVR_EDID_MFG`
+static bool simula_edid_present(void) {
+    DIR *d = opendir("/sys/class/drm");
+    if (!d) return false;
+
+    struct dirent *de;
+    bool found = false;
+
+    while (!found && (de = readdir(d))) { //loop through `/sys/class/drm*` to check for (1)-(3)
+        if (strncmp(de->d_name, "card", 4) || !strchr(de->d_name, '-')) //if * doesn't start with "card" and have at least one "-" in it, move on
+            continue;
+
+        //Read `/sys/class/drm/*/status` and `/sys/class/drm/%s/edid` state
+        char s_path[256], e_path[256];
+        snprintf(s_path, sizeof s_path, "/sys/class/drm/%s/status", de->d_name);
+        snprintf(e_path, sizeof e_path, "/sys/class/drm/%s/edid", de->d_name);
+
+        // Proceed only if `/sys/class/drm/*/status == "connected"`
+        int fd = open(s_path, O_RDONLY);
+        if (fd < 0) continue;
+        char buf[16] = {0};
+        read(fd, buf, sizeof buf);
+        close(fd);
+        if (strncmp(buf, "connected", 9)) continue;
+
+        // Procede only if the 8th byte of `/sys/class/drm/*/edid == SVR_EDID_MFG`
+        // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
+        fd = open(e_path, O_RDONLY);
+        if (fd < 0) continue;
+        uint8_t edid[128] = {0};
+        if (read(fd, edid, 128) == 128 && u16(edid + 8) == SVR_EDID_MFG) {
+            found = true;
+        }
+        close(fd);
+    }
+
+    closedir(d);
+    return found;
+}
 
 static const char *driver_list[] = {
     "simula",
@@ -148,6 +251,11 @@ svr_estimate_system(struct xrt_builder *xb, cJSON *config, struct xrt_prober *xp
 	struct simula_builder *sb = (struct simula_builder *)xb;
 	U_ZERO(estimate);
 
+	if (!simula_edid_present()) {
+		U_LOG_E("Failed to detect Simula One display via edid");
+		return XRT_SUCCESS;
+	}
+
 	const char *config_path = debug_get_option_simula_config_path();
 
 	if (config_path == NULL) {
@@ -219,6 +327,12 @@ svr_open_system_impl(struct xrt_builder *xb,
 		result = XRT_ERROR_DEVICE_CREATION_FAILED;
 		goto end;
 	} */
+
+	if (!simula_edid_present()) {
+		U_LOG_E("Simula display disappeared before it could be opened");
+		return XRT_ERROR_DEVICE_CREATION_FAILED;
+	}
+
   struct xrt_device *xv50_dev = xv_create_tracked_device_internal_slam();
   if (xv50_dev == NULL) {
       SVR_ERROR("Failed to open Xvisio SeerSense XR50 device!");

@@ -13,6 +13,9 @@ build:
 
     ln -sf build/src/xrt/targets/service/monado-service .
 
+build-watch:
+    while inotifywait -qqre modify .; do just build; done
+
 clean:
     rm -rf build/
     rm -f monado-service

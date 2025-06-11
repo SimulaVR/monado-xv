@@ -49,39 +49,38 @@ struct xv_device
 	struct m_relation_history *relation_hist; //<- where all of the orientation data is jammed
 };
 
-//Jams XR50 orientation data into the g_xv_device->relation_hist, so monado has access to it.
+//Jams XR50 orientation data into the g_xv_device->relation_hist, so monado has access to it
 static void
 xv_orientation_callback(const C_Orientation* orientation)
 {
     if (g_xv_device == NULL) {
-	printf("g_xv_device is NULL so returning early from xv_orientation_callback\n");
-	//snprintf(xdev->serial, XRT_DEVICE_NAME_LEN, "g_xv_device is NULL so returning early from xv_orientation_callback (printf)");
         return;
     }
 
     struct xrt_space_relation relation = {0};
 
-    //Since the XR50 only provides orientation data...
+    // Inscrutable quat math: negating Y and Z components to correct things (discovered through trial & error)
     relation.pose.orientation.x = orientation->quaternion[0];
-    relation.pose.orientation.y = orientation->quaternion[1];
-    relation.pose.orientation.z = orientation->quaternion[2];
+    relation.pose.orientation.y = -orientation->quaternion[1]; // Negated to fix inverted yaw
+    relation.pose.orientation.z = -orientation->quaternion[2]; // Negated to fix inverted roll
     relation.pose.orientation.w = orientation->quaternion[3];
 
-    // ...we set position and velocities to zero.
+    // Position and velocities set to zero (orientation-only tracking)
     relation.pose.position.x = 0;
     relation.pose.position.y = 0;
     relation.pose.position.z = 0;
+
     relation.linear_velocity.x = 0;
     relation.linear_velocity.y = 0;
     relation.linear_velocity.z = 0;
+
     relation.angular_velocity.x = 0;
     relation.angular_velocity.y = 0;
     relation.angular_velocity.z = 0;
 
-    relation.relation_flags = XRT_SPACE_RELATION_ORIENTATION_VALID_BIT |
-                              XRT_SPACE_RELATION_ORIENTATION_TRACKED_BIT;
+    relation.relation_flags = XRT_SPACE_RELATION_ORIENTATION_VALID_BIT | XRT_SPACE_RELATION_ORIENTATION_TRACKED_BIT;
 
-    //Then push to the relation history
+    // Push orientation data to relation history
     uint64_t timestamp_ns = os_monotonic_get_ns();
     m_relation_history_push(g_xv_device->relation_hist, &relation, timestamp_ns);
 }
@@ -90,7 +89,7 @@ xv_orientation_callback(const C_Orientation* orientation)
 static void
 xv_pose_callback(const C_Pose* pose)
 {
-    //Print 6dof data for debugging purposes
+    //Uncomment this to print 6dof data for debugging purposes
     /*
     XV_DEBUG(g_xv_device, "xv_pose_callback fired with pose: p=(%f,%f,%f), q=(%f,%f,%f,%f), conf=%f",
              pose->position[0], pose->position[1], pose->position[2],
@@ -100,33 +99,35 @@ xv_pose_callback(const C_Pose* pose)
 	printf("xv_pose_callback: Received pose timestamp=%f\n", pose->hostTimestamp);
     */
 
-
     if (g_xv_device == NULL) {
-	printf("g_xv_device is NULL so returning early from xv_pose_callback");
         return;
     }
 
     struct xrt_space_relation relation = {0};
 
-    // Set orientation (quaternion)
+    // Inscrutable quat math: negating Y and Z components to correct things (discovered through trial & error)
     relation.pose.orientation.x = pose->quaternion[0];
-    relation.pose.orientation.y = pose->quaternion[1];
-    relation.pose.orientation.z = pose->quaternion[2];
+    relation.pose.orientation.y = -pose->quaternion[1];
+    relation.pose.orientation.z = -pose->quaternion[2];
     relation.pose.orientation.w = pose->quaternion[3];
 
-    // Set position (translation)
+    const float position_scale = 2.54f;  // Scaling factor for units correction
+
+    // Fixed positions, inverting y positoin to fix xvisio <-> monado mismatch
     relation.pose.position.x = pose->position[0];
-    relation.pose.position.y = pose->position[1];
-    relation.pose.position.z = pose->position[2];
+    relation.pose.position.y = -pose->position[1];
+    relation.pose.position.z = -pose->position[2];
 
-    // Set velocities
-    relation.linear_velocity.x = pose->linearVelocity[0];
-    relation.linear_velocity.y = pose->linearVelocity[1];
-    relation.linear_velocity.z = pose->linearVelocity[2];
+    // Fixed linear velocity with scaling factor and axis corrections
+    // If we don't use the scaling factor, things feel too slow
+    relation.linear_velocity.x = pose->linearVelocity[0] * position_scale;
+    relation.linear_velocity.y = -pose->linearVelocity[1] * position_scale;
+    relation.linear_velocity.z = -pose->linearVelocity[2] * position_scale;
 
+    // Fixed angular velocity
     relation.angular_velocity.x = pose->angularVelocity[0];
-    relation.angular_velocity.y = pose->angularVelocity[1];
-    relation.angular_velocity.z = pose->angularVelocity[2];
+    relation.angular_velocity.y = -pose->angularVelocity[1];  // Negated to match orientation
+    relation.angular_velocity.z = -pose->angularVelocity[2];  // Negated to match orientation
 
     // Update flags to indicate we have full tracking
     relation.relation_flags =
@@ -137,8 +138,8 @@ xv_pose_callback(const C_Pose* pose)
         XRT_SPACE_RELATION_ORIENTATION_TRACKED_BIT |
         XRT_SPACE_RELATION_POSITION_TRACKED_BIT;
 
+    // Jam 6dof data into the relation history so monado can see it
     uint64_t timestamp_ns = os_monotonic_get_ns();
-
     m_relation_history_push(g_xv_device->relation_hist, &relation, timestamp_ns);
 }
 

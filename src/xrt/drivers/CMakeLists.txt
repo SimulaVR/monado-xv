@@ -216,11 +216,14 @@ if(XRT_BUILD_DRIVER_XVISIO)
         xvisio/xv_prober.c
         xvisio/xv_interface.h
     )
+    # Simula's xvsdk package provides libjpeg.so.8 for us
     target_link_libraries(drv_xvisio PRIVATE
         xrt-interfaces
         aux_util
         ${XVSDK_LIBRARY_DIR}/libxvsdk.so
         ${XVSDK_LIBRARY_DIR}/libxv_c_wrapper.so
+        ${XVSDK_LIBRARY_DIR}/libjpeg.so.8
+        stdc++
     )
     target_include_directories(drv_xvisio PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/..

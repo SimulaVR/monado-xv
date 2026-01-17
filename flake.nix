@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/63dacb46bf939521bdc93981b4cbb7ecb58427a0";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     systems.url = "github:nix-systems/x86_64-linux";
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
@@ -23,7 +23,7 @@
         { pkgs, system, ... }:
         let
           monado-xv = pkgs.callPackage ./. { };
-          xvsdk = pkgs.callPackage ./submodules/xvsdk/xvsdk.nix { }; # submodules dependency
+          xvsdk = pkgs.callPackage ./submodules/xvsdk/xvsdk.nix { };
         in
         {
           _module.args.pkgs = import inputs.nixpkgs {
@@ -53,6 +53,7 @@
               pkgs.glslang
               pkgs.pkg-config
               pkgs.python3
+              pkgs.gcc
             ];
 
             buildInputs = [
@@ -70,7 +71,6 @@
               pkgs.libffi
               pkgs.libGL
               pkgs.libjpeg
-              pkgs.librealsense
               pkgs.libsurvive
               pkgs.libunwind
               pkgs.libusb1
@@ -82,7 +82,6 @@
               pkgs.xorg.libXdmcp
               pkgs.xorg.libXext
               pkgs.xorg.libXrandr
-              pkgs.onnxruntime
               pkgs.opencv4
               pkgs.openhmd
               pkgs.openvr
@@ -98,8 +97,9 @@
               pkgs.wayland-scanner
               pkgs.zlib
               pkgs.zstd
-
               xvsdk
+              # pkgs.librealsense  # Avoid to dodge ABI conflict errors
+              # pkgs.onnxruntime   # "
             ];
 
             # Environment variables to pass cmake through just command

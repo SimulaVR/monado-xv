@@ -7,7 +7,10 @@ build:
         -DXRT_HAVE_XVISIO=ON \
         -DXRT_HAVE_LIBUVC=OFF \
         -DXVSDK_INCLUDE_DIR=$XVSDK_INCLUDE_DIR \
-        -DXVSDK_LIBRARY_DIR=$XVSDK_LIBRARY_DIR
+        -DXVSDK_LIBRARY_DIR=$XVSDK_LIBRARY_DIR \
+        -DXRT_BUILD_DRIVER_REALSENSE=OFF \
+        -DXRT_HAVE_ONNXRUNTIME=OFF \
+        -DXRT_HAVE_OPENCV=OFF
 
     cmake --build ./build -- -j$(nproc)
 

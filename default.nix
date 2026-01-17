@@ -19,7 +19,6 @@
   libffi,
   libGL,
   libjpeg,
-  librealsense,
   libsurvive,
   libunwind,
   libusb1,
@@ -31,7 +30,6 @@
   libXdmcp,
   libXext,
   libXrandr,
-  onnxruntime,
   opencv4,
   openhmd,
   openvr,
@@ -56,7 +54,9 @@
   # https://gitlab.freedesktop.org/monado/monado/-/blob/master/doc/targets.md#xrt_feature_service-disabled
   serviceSupport ? true,
   callPackage,
-  fetchFromGitHub,
+
+  # librealsense,  # Exclude to avoid ABI conflict errors
+  # onnxruntime    # "
 }:
 
 let
@@ -85,6 +85,9 @@ stdenv.mkDerivation {
     "-DXRT_HAVE_LIBUVC=OFF" # to prevent conflicting with xvsdk wrapper
     "-DXVSDK_INCLUDE_DIR=${xvsdk}/include"
     "-DXVSDK_LIBRARY_DIR=${xvsdk}/lib"
+    "-DXRT_HAVE_OPENCV=OFF"
+    "-DXRT_BUILD_DRIVER_REALSENSE=OFF" # Avoid realsense + onnx runtime to avoid ABI conflict errors
+    "-DXRT_HAVE_ONNXRUNTIME=OFF"       # "
   ];
 
   buildInputs = [
@@ -102,7 +105,6 @@ stdenv.mkDerivation {
     libffi
     libGL
     libjpeg
-    librealsense
     libsurvive
     libunwind
     libusb1
@@ -114,7 +116,6 @@ stdenv.mkDerivation {
     libXdmcp
     libXext
     libXrandr
-    onnxruntime
     opencv4
     openhmd
     openvr
@@ -131,6 +132,9 @@ stdenv.mkDerivation {
     zlib
     zstd
     xvsdk
+
+    # librealsense  # Exclude to avoid ABI conflict errors
+    # onnxruntime   # "
   ];
 
   # known disabled drivers/features:

@@ -33,6 +33,9 @@
 DEBUG_GET_ONCE_FLOAT_OPTION(present_to_display_offset_ms, "U_PACING_COMP_PRESENT_TO_DISPLAY_OFFSET_MS", 4.0f)
 DEBUG_GET_ONCE_FLOAT_OPTION(min_comp_time_ms, "U_PACING_COMP_MIN_TIME_MS", 3.0f)
 DEBUG_GET_ONCE_BOOL_OPTION(live_stats, "U_PACING_LIVE_STATS", false)
+DEBUG_GET_ONCE_LOG_OPTION(fake_log_level, "U_PACING_COMPOSITOR_LOG", U_LOGGING_WARN)
+
+#define UPC_FAKE_LOG_T(...) U_LOG_IFL_T(debug_get_log_option_fake_log_level(), __VA_ARGS__)
 
 // We keep track of this number of frames.
 #define FRAME_COUNT 8
@@ -261,6 +264,33 @@ calc_gpu_stats(struct fake_timing *ft, struct frame *f, uint64_t gpu_start_ns, u
 	}
 }
 
+static void
+log_measured_compositor_timing(struct frame *f, uint64_t gpu_end_ns, uint64_t when_infoed_ns)
+{
+	if (f->when_woke_ns == 0 || f->when_submit_end_ns == 0) {
+		return;
+	}
+
+	double since_last_frame_ms = time_ns_to_ms_f(f->predicted_display_period_ns);
+
+	UPC_FAKE_LOG_T(
+	    "Got measured compositor timing from compositor pacer"
+	    "\n\tframe_id:                 0x%08" PRIx64 //
+	    "\n\twhen_woke_ns:             %" PRIu64     //
+	    "\n\twhen_submitted_ns:        %" PRIu64     //
+	    "\n\twhen_infoed_ns:           %" PRIu64     //
+	    "\n\tsince_last_frame_ms:      %.2fms"       //
+	    "\n\tdesired_present_time_ns:  %" PRIu64     //
+	    "\n\tgpu_end_ns:               %" PRIu64,    //
+	    f->frame_id,                                  //
+	    f->when_woke_ns,                              //
+	    f->when_submit_end_ns,                        //
+	    when_infoed_ns,                               //
+	    since_last_frame_ms,                          //
+	    f->predicted_present_time_ns,                 //
+	    gpu_end_ns);                                  //
+}
+
 
 /*
  *
@@ -370,6 +400,7 @@ pc_info_gpu(
 	struct frame *f = get_frame_or_null(ft, frame_id);
 	if (f != NULL) {
 		calc_gpu_stats(ft, f, gpu_start_ns, gpu_end_ns);
+		log_measured_compositor_timing(f, gpu_end_ns, when_ns);
 	}
 
 	if (u_metrics_is_active()) {

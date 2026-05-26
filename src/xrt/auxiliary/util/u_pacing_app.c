@@ -599,15 +599,19 @@ pa_mark_gpu_done(struct u_pacing_app *upa, int64_t frame_id, uint64_t when_ns)
 	uint64_t diff_cpu_ns = f->when.begin_ns - f->when.wait_woke_ns;
 	uint64_t diff_draw_ns = f->when.delivered_ns - f->when.begin_ns;
 	uint64_t diff_gpu_ns = f->when.gpu_done_ns - f->when.delivered_ns;
+	uint64_t diff_total_ns = diff_cpu_ns + diff_draw_ns + diff_gpu_ns;
 
 	UPA_LOG_D(
 	    "Delivered frame %.2fms %s."                                          //
 	    "\n\tperiod: %.2f"                                                    //
+	    "\n\ttotal o: %.2f, n: %.2f"                                          //
 	    "\n\tcpu  o: %.2f, n: %.2f"                                           //
 	    "\n\tdraw o: %.2f, n: %.2f"                                           //
 	    "\n\tgpu  o: %.2f, n: %.2f",                                          //
 	    time_ns_to_ms_f(diff_ns), late ? "late" : "early",                    //
 	    time_ns_to_ms_f(f->predicted_display_period_ns),                      //
+	    time_ns_to_ms_f(f->predicted_frame_time_ns),                          //
+	    time_ns_to_ms_f(diff_total_ns),                                       //
 	    time_ns_to_ms_f(pa->app.cpu_time_ns), time_ns_to_ms_f(diff_cpu_ns),   //
 	    time_ns_to_ms_f(pa->app.draw_time_ns), time_ns_to_ms_f(diff_draw_ns), //
 	    time_ns_to_ms_f(pa->app.gpu_time_ns), time_ns_to_ms_f(diff_gpu_ns));  //
